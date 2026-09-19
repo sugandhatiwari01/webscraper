@@ -267,10 +267,9 @@ export async function scrapeProduct(productId) {
      * --------------------------------------------------
      */
 
-    browser = await chromium.launch({
-      channel: 'chrome',
-      headless: true
-    });
+  browser = await chromium.launch({
+  headless: true
+});
 
     const context =
       await browser.newContext();
