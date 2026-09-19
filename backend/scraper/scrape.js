@@ -76,78 +76,68 @@ function sleep(ms) {
 // =====================================================
 
 async function stimulatePriceBlock(page, priceBlock) {
-  const box =
-    await priceBlock.boundingBox();
+  const box = await priceBlock.boundingBox();
 
   if (!box) {
-    throw new Error(
-      'Price block has no bounding box'
-    );
+    throw new Error('Price block has no bounding box');
   }
 
-  const centerX =
-    box.x + box.width / 2;
+  const centerX = box.x + box.width / 2;
+  const centerY = box.y + box.height / 2;
 
-  const centerY =
-    box.y + box.height / 2;
+  console.log('[SCRAPER] Stimulating price block with realistic mouse movement...');
 
-  /*
-   * Start outside the price block.
-   */
+  // Start outside the price block.
   await page.mouse.move(
-    Math.max(5, centerX - 220),
-    Math.max(5, centerY - 120)
+    Math.max(5, centerX - 300),
+    Math.max(5, centerY - 200),
+    { steps: 12 }
   );
 
-  await sleep(150);
+  await page.waitForTimeout(300);
 
-  /*
-   * Move through the price block with
-   * several distinct coordinates.
-   */
-  const moves = [
-    [-140, -70],
-    [-110, -40],
-    [-80, -15],
-    [-50, 20],
-    [-20, -10],
-    [10, 25],
-    [40, -15],
-    [70, 20],
-    [100, -5],
-    [120, 25],
-    [80, 0],
-    [40, 15],
-    [0, 0]
-  ];
-
-  for (const [dx, dy] of moves) {
-    await page.mouse.move(
-      centerX + dx,
-      centerY + dy,
-      {
-        steps: 4
-      }
-    );
-
-    await sleep(100);
-  }
-
-  /*
-   * Explicitly enter the price block.
-   */
+  // Move gradually toward the price block.
   await page.mouse.move(
-    centerX,
+    centerX - 100,
+    centerY - 70,
+    { steps: 15 }
+  );
+
+  await page.waitForTimeout(250);
+
+  // Small movements around the target.
+  await page.mouse.move(
+    centerX - 25,
+    centerY - 15,
+    { steps: 10 }
+  );
+
+  await page.waitForTimeout(250);
+
+  await page.mouse.move(
+    centerX + 20,
+    centerY + 10,
+    { steps: 8 }
+  );
+
+  await page.waitForTimeout(800);
+
+  // Sweep across the price area.
+  await page.mouse.move(
+    centerX - box.width * 0.25,
     centerY,
-    {
-      steps: 5
-    }
+    { steps: 8 }
   );
 
-  /*
-   * The storefront requires dwell time.
-   */
-  await sleep(900);
+  await page.mouse.move(
+    centerX + box.width * 0.25,
+    centerY,
+    { steps: 8 }
+  );
+
+  await page.waitForTimeout(1000);
+
+  console.log('[SCRAPER] Mouse interaction completed.');
 }
 
 // =====================================================

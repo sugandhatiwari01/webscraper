@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
-
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
 const API =
   import.meta.env.VITE_API_URL ||
   "http://localhost:5000";
@@ -947,7 +955,34 @@ export default function App() {
                 {/* =========================================
                     PRICE HISTORY
                 ========================================= */}
+<div className="history-card">
+  <h3>Price History</h3>
 
+  {history.length === 0 ? (
+    <p className="muted">No price history yet.</p>
+  ) : (
+    <ResponsiveContainer width="100%" height={320}>
+      <LineChart
+        data={history.map((item) => ({
+          date: new Date(item.scraped_at).toLocaleString(),
+          price: Number(item.price),
+        }))}
+      >
+        <CartesianGrid strokeDasharray="3 3" />
+        <XAxis dataKey="date" />
+        <YAxis />
+        <Tooltip />
+        <Line
+          type="monotone"
+          dataKey="price"
+          stroke="#945D5D"
+          strokeWidth={3}
+          dot={{ r: 4 }}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  )}
+</div>
                 <div className="data-section">
 
                   <div className="section-header">
