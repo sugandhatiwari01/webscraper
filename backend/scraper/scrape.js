@@ -444,14 +444,36 @@ export async function scrapeProduct(productId) {
      * --------------------------------------------------
      */
 
-    console.log(
-      '[SCRAPER] Revealing price...'
-    );
+ await dismissCookieOverlay(page);
 
-    await button.click({
-      noWaitAfter: true,
-      timeout: 5000
-    });
+await page.waitForTimeout(300);
+
+if (!(await isRevealButtonEnabled(button))) {
+  throw new Error(
+    'Reveal price button became disabled before click'
+  );
+}
+
+console.log('[SCRAPER] Revealing price...');
+
+try {
+  await button.click({
+    noWaitAfter: true,
+    timeout: 5000
+  });
+} catch (clickError) {
+  console.log(
+    '[SCRAPER] Normal click blocked; retrying with force click...'
+  );
+
+  await dismissCookieOverlay(page);
+
+  await button.click({
+    noWaitAfter: true,
+    timeout: 5000,
+    force: true
+  });
+}
 
     /*
      * --------------------------------------------------
