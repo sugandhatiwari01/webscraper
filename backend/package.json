@@ -1,0 +1,23 @@
+{
+  "name": "ine-price-tracker-backend",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "node --watch server.js",
+    "start": "node server.js",
+    "scrape:headed": "node scraper/headed.js",
+    "scrape:run": "node scraper/run.js",
+    "test:headed": "node scraper/test-headed.js",
+  "test:scrape": "node scraper/test-scrape.js"
+
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "^2.57.0",
+    "cheerio": "^1.1.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.2",
+    "express": "^5.1.0",
+    "playwright": "^1.55.0"
+  }
+}
