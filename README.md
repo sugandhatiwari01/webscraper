@@ -1,456 +1,250 @@
-# INE Price Tracker
+﻿# INE Price Tracker
 
-A full-stack price and stock tracking application for the INE mock storefront.
+A full-stack app for tracking price and stock changes on the INE demo storefront. Users can search the catalog, add products to a watchlist, trigger manual scrapes, and inspect historical pricing and audit logs.
 
-Users can search products from the INE storefront, track products, manually trigger scrapes, and view historical price/stock data and per-product scrape logs.
-
-## Live Demo
+## Live demo
 
 - Frontend: https://webscraper-dusky.vercel.app
 - Backend API: https://webscraper-1-2xb3.onrender.com
 - Store: https://demo.inelabteamdev.com
 
-## Features
+## What it does
 
-- Search products from the INE storefront
-- Search by product name/keyword or product ID
-- Track products for monitoring
-- Store product metadata in PostgreSQL
-- Scrape:
-  - Current price
-  - MRP
-  - Discount
-  - Stock quantity
-  - Stock status
-  - Seller
-  - Scrape duration
-  - Timestamp
-- Maintain price/stock history
-- Maintain per-product scrape logs
-- Record successful and failed scrape attempts
-- Manual single-product scraping
-- Scheduled scraping through an external cron service
-- Responsive React dashboard
-- REST API using Node.js and Express
+- Search products by keyword or product ID
+- Track products for ongoing monitoring
+- Scrape current price, MRP, discount, stock, seller, and scrape duration
+- Keep a price history for each tracked product
+- Record successful and failed scrape attempts in dedicated logs
+- Trigger manual scrapes or run the full tracked-product batch through a protected cron endpoint
+- View product history and logs in a small React dashboard
 
----
+## Tech stack
+
+- Frontend: React, Vite, Recharts
+- Backend: Node.js, Express
+- Scraping: Playwright, Cheerio
+- Database: Supabase + PostgreSQL
+- Deployment: Vercel for frontend, Render for backend
 
 ## Architecture
 
 ```text
-                    ┌──────────────────────┐
-                    │      INE Store       │
-                    │ demo.inelabteamdev   │
-                    │        .com          │
-                    └──────────┬───────────┘
-                               │
-                         HTTP / Playwright
-                               │
-                               ▼
-┌─────────────────┐     ┌──────────────────────┐
-│ React Frontend  │────▶│ Node.js / Express    │
-│     Vercel      │     │       Render         │
-└─────────────────┘     └──────────┬───────────┘
-                                   │
-                    ┌──────────────┼──────────────┐
-                    │              │              │
-                    ▼              ▼              ▼
-              Store Search     Playwright      REST APIs
-              + Catalog        Scraper
-                                   │
-                                   ▼
-                         ┌─────────────────┐
-                         │ Supabase        │
-                         │ PostgreSQL      │
-                         └─────────────────┘
-                                   ▲
-                                   │
-                         ┌─────────┴─────────┐
-                         │  cron-job.org     │
-                         │ External Scheduler│
-                         └───────────────────┘
+INE storefront (demo.inelabteamdev.com)
+        |
+        | HTTP + browser-based price reveal
+        v
+Frontend (React + Vite) -- fetches --> Backend API (Node.js + Express)
+                                            |
+                                            | stores tracked products
+                                            v
+                                      Supabase PostgreSQL
+                                            |
+                                            | price history + scrape logs
+                                            v
+                                   Scheduled cron job / manual triggers
+```
 
-                         Tech Stack
-Frontend
-React
-Vite
-JavaScript
-CSS
-Vercel
-Backend
-Node.js
-Express.js
-Playwright
-Cheerio
-CORS
-dotenv
-Database
-Supabase
-PostgreSQL
-Scheduling
-cron-job.org
-Deployment
-Frontend: Vercel
-Backend: Render
-Database: Supabase
-Database Schema
-tracked_products
+## Project structure
 
-Stores products selected for tracking.
+```text
+.
+├── backend/
+│   ├── scraper/
+│   │   ├── extract.js
+│   │   ├── find-search.js
+│   │   ├── headed.js
+│   │   ├── inspect-store.js
+│   │   ├── run.js
+│   │   ├── scrape.js
+│   │   ├── store.js
+│   │   ├── test-catalog.js
+│   │   └── test-search.js
+│   ├── package.json
+│   ├── server.js
+│   └── Dockerfile
+├── database/
+│   └── schema.sql
+├── frontend/
+│   ├── src/
+│   ├── index.html
+│   ├── package.json
+│   └── vite.config.*
+├── DESIGN-NOTE.md
+├── README.md
+└── .env.example (recommended)
+```
 
-Column	Type	Description
-id	UUID	Primary key
-product_id	INTEGER	INE product ID
-name	TEXT	Product name
-brand	TEXT	Product brand
-category	TEXT	Product category
-sku	TEXT	Product SKU
-product_url	TEXT	Store product URL
-is_active	BOOLEAN	Whether the product is actively tracked
-created_at	TIMESTAMPTZ	Creation timestamp
-updated_at	TIMESTAMPTZ	Last update timestamp
+## Prerequisites
 
-product_id is unique.
+- Node.js 18+ recommended
+- npm
+- A Supabase project with PostgreSQL enabled
+- Access to the INE demo storefront
 
-price_history
+## Local setup
 
-Stores every successful scrape result.
+### 1. Install dependencies
 
-Column	Type	Description
-id	BIGSERIAL	Primary key
-tracked_product_id	UUID	Reference to tracked product
-product_id	INTEGER	INE product ID
-price	NUMERIC	Current price
-mrp	NUMERIC	MRP
-discount	NUMERIC	Displayed discount percentage
-stock	INTEGER	Available stock
-stock_status	TEXT	Stock state
-seller	TEXT	Seller name
-currency	TEXT	Currency
-scraped_at	TIMESTAMPTZ	Scrape timestamp
-duration_ms	INTEGER	Scrape duration
-scrape_logs
+Backend:
 
-Stores both successful and failed scrape attempts.
-
-Column	Type	Description
-id	BIGSERIAL	Primary key
-tracked_product_id	UUID	Reference to tracked product
-product_id	INTEGER	INE product ID
-status	TEXT	success or failed
-attempt	INTEGER	Attempt number
-duration_ms	INTEGER	Duration
-error_message	TEXT	Error information
-response_status	INTEGER	HTTP response status
-scraped_at	TIMESTAMPTZ	Attempt timestamp
-Scraping Strategy
-
-The scraper uses a hybrid approach.
-
-1. HTTP/HTML where possible
-
-Store catalog and product metadata are retrieved using normal HTTP requests.
-
-Cheerio is used where server-rendered HTML is sufficient.
-
-This keeps ordinary requests lightweight and avoids using a browser unnecessarily.
-
-2. Playwright for protected price interaction
-
-The current price on the INE mock storefront is not immediately available in the initial HTML.
-
-The storefront requires an interaction with the price area before the "Reveal price" button becomes enabled.
-
-Therefore Playwright is used only for the product-price interaction.
-
-The scraper:
-
-Opens the product page.
-Handles the page state/cookie overlay where necessary.
-Locates the price block.
-Performs realistic mouse movement.
-Waits for the reveal button to become enabled.
-Clicks the reveal button.
-Extracts price, MRP, discount, stock and seller.
-Stores the result.
-Search
-
-The backend searches the INE catalog through the storefront catalog API.
-
-For numeric queries, the backend treats the query as a product ID and directly requests the corresponding product.
-
-For normal text queries, it searches catalog pages and filters matching products.
-
-Catalog responses are cached to reduce unnecessary requests and avoid repeatedly requesting the same pages.
-
-Reliability and Failure Handling
-
-Scraping external pages is inherently unreliable, so the application records failures instead of silently losing them.
-
-Individual scrape failure
-
-If a product cannot be scraped, the error is recorded in scrape_logs.
-
-For scheduled scraping, one failed product does not stop the loop from attempting the remaining tracked products.
-
-Retries
-
-The catalog search logic retries transient HTTP failures such as:
-
-429 Too Many Requests
-503 Service Unavailable
-
-with increasing delays.
-
-Browser interaction retries
-
-The Playwright scraper retries the price interaction when the reveal button does not become enabled.
-
-If the button remains disabled after the configured attempts, the scrape is marked as failed.
-
-Logging
-
-The backend records:
-
-Product ID
-Status
-Attempt number
-Duration
-Error message
-Timestamp
-HTTP response status where applicable
-
-This makes failed scrapes observable instead of hiding them.
-
-API Endpoints
-Health Check
-GET /api/health
-
-Example:
-
-{
-  "ok": true,
-  "service": "INE Price Tracker API",
-  "time": "..."
-}
-Search Products
-GET /api/products/search?q=docking
-Get Tracked Products
-GET /api/products/tracked
-Track Product
-POST /api/products/track
-Content-Type: application/json
-
-{
-  "productId": 120
-}
-Scrape One Product
-POST /api/scrape/run
-Content-Type: application/json
-
-{
-  "productId": 120
-}
-Price History
-GET /api/products/:productId/history
-Scrape Logs
-GET /api/products/:productId/logs
-Scheduled Scrape
-POST /api/scrape/run-all
-Authorization: Bearer <CRON_SECRET>
-
-The scheduled endpoint retrieves all active tracked products and processes them sequentially.
-
-Environment Variables
-Backend
-
-Create a .env file:
-
-PORT=10000
-
-STORE_BASE_URL=https://demo.inelabteamdev.com
-
-SUPABASE_URL=your_supabase_url
-SUPABASE_SERVICE_ROLE_KEY=your_supabase_service_role_key
-
-FRONTEND_URL=https://webscraper-dusky.vercel.app
-
-CRON_SECRET=your_cron_secret
-Frontend
-VITE_API_URL=https://webscraper-1-2xb3.onrender.com
-
-Do not include /api in VITE_API_URL.
-
-Local Development
-Backend
+```bash
 cd backend
 npm install
-npm start
+```
 
-For development:
+Frontend:
 
-npm run dev
-
-The backend runs on:
-
-http://localhost:10000
-Frontend
+```bash
 cd frontend
 npm install
+```
+
+### 2. Set environment variables
+
+Create a `.env` file in the backend folder with values like:
+
+```env
+PORT=5000
+STORE_BASE_URL=https://demo.inelabteamdev.com
+FRONTEND_URL=http://localhost:5173
+SUPABASE_URL=https://your-project.supabase.co
+SUPABASE_SERVICE_ROLE_KEY=your-service-role-key
+CRON_SECRET=your-secret-token
+```
+
+Create a `.env` file in the frontend folder if needed:
+
+```env
+VITE_API_URL=http://localhost:5000
+```
+
+### 3. Initialize the database
+
+Apply the schema in `database/schema.sql` to your Supabase database using the Supabase SQL editor or psql.
+
+### 4. Start the app
+
+Backend:
+
+```bash
+cd backend
 npm run dev
+```
 
-The Vite development server will provide the local frontend URL.
+Frontend:
 
-Deployment
-Backend
+```bash
+cd frontend
+npm run dev
+```
 
-The backend is deployed on Render using the Playwright Docker image.
+The frontend runs at http://localhost:5173 and the backend at http://localhost:5000.
 
-The Docker image provides the browser dependencies required by Playwright.
+## Available scripts
 
-Example Dockerfile:
+### Backend
 
-FROM mcr.microsoft.com/playwright:v1.63.0-noble
+```bash
+npm run dev
+npm run start
+npm run scrape:headed
+npm run scrape:run
+```
 
-WORKDIR /app
+### Frontend
 
-COPY package*.json ./
+```bash
+npm run dev
+npm run build
+npm run preview
+```
 
-RUN npm install
+## API endpoints
 
-COPY . .
+### Health check
 
-EXPOSE 10000
+```http
+GET /api/health
+```
 
-CMD ["npm", "start"]
-Frontend
+### Search products
 
-The React/Vite application is deployed on Vercel.
+```http
+GET /api/products/search?q=keyboard
+```
 
-The production API URL is configured through:
+### Get tracked products
 
-VITE_API_URL=https://webscraper-1-2xb3.onrender.com
-Scheduled Scraping
+```http
+GET /api/products/tracked
+```
 
-The application exposes:
+### Track a product
 
+```http
+POST /api/products/track
+Content-Type: application/json
+```
+
+Example body:
+
+```json
+{
+  "productId": 120
+}
+```
+
+### Run a single scrape
+
+```http
+POST /api/scrape/run
+Content-Type: application/json
+```
+
+Example body:
+
+```json
+{
+  "productId": 120
+}
+```
+
+### Run all tracked products
+
+```http
 POST /api/scrape/run-all
-
-The endpoint is protected using CRON_SECRET.
-
-An external scheduler such as cron-job.org can call it every two hours.
-
-Example schedule:
-
-0 */2 * * *
-
-Request:
-
-POST https://webscraper-1-2xb3.onrender.com/api/scrape/run-all
 Authorization: Bearer <CRON_SECRET>
-Scheduler trade-off
+```
 
-The scheduled endpoint performs browser-based scraping sequentially, so a run can take several minutes depending on the number of tracked products and the storefront response time.
+This route verifies the shared secret and then scrapes every active tracked product sequentially.
 
-This is a deliberate simple architecture for the assignment.
+### Price history
 
-For a production system, this work would be better handled by a persistent background job system/queue rather than keeping a single HTTP request open for the entire scrape batch.
+```http
+GET /api/products/:productId/history
+```
 
-Observability
+### Scrape logs
 
-The application provides two levels of observability.
+```http
+GET /api/products/:productId/logs
+```
 
-Application logs
+## Scraping behavior
 
-Render logs show:
+The app uses a hybrid extraction strategy:
 
-[SCRAPE] Starting scrape for product ...
-[SCRAPER] Opening ...
-[SCRAPER] Price interaction attempt ...
-[SCRAPER] Successful ...
-[SCRAPE] Success ...
+- HTTP + Cheerio for standard catalog and metadata fetches
+- Playwright for the final price reveal flow when the storefront requires browser interaction before the price becomes visible
 
-Failures include the reason for failure.
+The backend stores both successful and failed attempts in `scrape_logs`, so failures remain observable instead of being silently dropped.
 
-Database logs
+## Notes
 
-The scrape_logs table provides persistent per-product execution history.
+- This project is tailored to the INE demo storefront and may need adjustments if the target site changes its DOM or API responses.
+- The cron endpoint is protected with `CRON_SECRET` and is intended for external schedulers such as cron-job.org.
+- A slower verified scrape is preferred over silently recording incorrect price data.
 
-This allows the dashboard to show whether a scrape succeeded or failed and how long it took.
+## License
 
-Known Limitations
-The INE storefront uses an interaction-based price reveal mechanism, so browser automation is required for current price extraction.
-The storefront's anti-bot/interaction behavior can occasionally prevent the price from being revealed.
-Playwright scraping is significantly slower than normal HTTP requests.
-Sequential scheduled scraping can result in a long-running request when many products are tracked.
-Render free-tier behavior can introduce cold-start latency.
-The external scheduler depends on cron-job.org successfully invoking the backend.
-Price history only records successful extraction results; failed attempts are stored separately in scrape_logs.
-Design Decisions
-Why PostgreSQL?
-
-The data has clear relationships between tracked products, historical price records and scrape logs.
-
-PostgreSQL provides:
-
-Relational integrity
-Foreign keys
-Structured querying
-Indexing
-Timestamp-based history queries
-Why Playwright?
-
-A normal HTTP request is sufficient for catalog and product metadata, but the current price is revealed only after browser interaction.
-
-Using Playwright only for that portion keeps the scraping architecture lighter than using browser automation for every request.
-
-Why sequential scraping?
-
-Sequential scraping reduces concurrent load on the storefront and makes individual failures easier to isolate and observe.
-
-A production implementation could use controlled concurrency with a queue and rate limiter.
-
-AI-Assisted Development
-
-AI assistance was used during development for debugging, implementation ideas and code iteration.
-
-Several assumptions were verified against the actual storefront rather than being accepted blindly.
-
-For example:
-
-The price was initially assumed to be available directly in the HTML.
-Investigation showed that the price required an interaction-based reveal.
-The scraper was therefore changed to use Playwright for the protected interaction.
-Catalog pagination and rate limiting were also tested against the actual storefront behavior.
-Scrape failures were retained as observable failures rather than treating every request as guaranteed to succeed.
-
-The final implementation was tested against the deployed application and the target storefront.
-
-Future Improvements
-
-For a production version, the following could be added:
-
-Background job queue such as BullMQ
-Redis-backed job processing
-Controlled parallel scraping
-Persistent scheduler/worker architecture
-Better anti-bot/session handling
-Automatic alerting on price changes
-Price-drop notifications
-More detailed monitoring and metrics
-Authentication and user-specific tracked products
-Pagination for large tracked-product lists
-Author
-
-Sugandha Tiwari
-
-B.Tech Computer Science Engineering
-
-GitHub: https://github.com/sugandhatiwari01/webscraper
-
-
-### One thing I would change before committing
-
-Don't put your **actual Supabase service-role key or CRON secret** anywhere in this README. Keep only the placeholders shown above.
-
-Also add a `.env.example` containing the same placeholder variables.
+This project is intended for local or internal use unless you add your own license file.
